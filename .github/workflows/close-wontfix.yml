@@ -2,20 +2,36 @@ name: Close Wontfix Issues
 
 on:
   issues:
-    types: [labeled]
+    types: [labeled, opened]
 
 jobs:
   close-wontfix:
-    if: github.event.label.name == 'wontfix'
     runs-on: ubuntu-latest
     steps:
-      - name: Close Issue
+      - name: Close Issue if wontfix label
         uses: actions/github-script@v7
         with:
           script: |
-            github.rest.issues.update({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              state: 'closed'
-            })
+            const label = context.payload.label;
+            const issue = context.payload.issue;
+            
+            // Check if this is a wontfix label being added, or if issue was created with wontfix
+            if (label && label.name === 'wontfix') {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'closed'
+              });
+            } else if (context.payload.action === 'opened') {
+              // Check if issue has wontfix label when created
+              const labels = issue.labels.map(l => l.name);
+              if (labels.includes('wontfix')) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+              }
+            }
